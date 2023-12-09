@@ -75,10 +75,11 @@ parse_path :: (_s: string, reduce := true) -> Path {
     else       return result;
 }
 
-reduce_path :: (path: Path) -> Path {  // The returned Path is in Temporary_Storage.
+reduce_path :: (path: Path) -> Path {  // The returned Path is in Temporary_Storage (and we use Temporary_Storage for the words array).
     result := path;
 
     words: [..] string;
+    words.allocator = temp;
     for path.words {
         if it == "." {
             // Skip this!

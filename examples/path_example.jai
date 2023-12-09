@@ -75,6 +75,16 @@ main :: () {
                                  "~tim_apple/secret_plans/how_to_make_uis_even_worse_in_2021.ppt",
                                  "/usr/local/bin/escape_from_tarkov.uml" ];
 
+
+        lookup_home_directory_from_username :: (username: string) -> string {
+            // Just pretend this is a real function.
+
+            if username == "jon"    return "/home/jon";
+            if username == "jeffr"  return "/var/local/home_directories/on_the_drobo/jeffr";
+
+            return "";  // Unknown!
+        }
+
         for path_strings {
             path := parse_path(it);  // This does cleanup.
 
@@ -112,15 +122,6 @@ main :: () {
             print("Input:  %\n", it);
             print("Result: %\n", result);
             print("Success: %\n", success);
-        }
-
-        lookup_home_directory_from_username :: (username: string) -> string {
-            // Just pretend this is a real function.
-
-            if username == "jon"    return "/home/jon";
-            if username == "jeffr"  return "/var/local/home_directories/on_the_drobo/jeffr";
-
-            return "";  // Unknown!
         }
     }
 

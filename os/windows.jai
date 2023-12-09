@@ -17,8 +17,7 @@ copy_file :: (source: string, dest: string, silent := false) -> bool {
 // of the strings and of the array), and just free the heap
 // at the end.
 
-// @Functionality: follow_symlinks is ignored on Windows for now. I'm not sure if there is something to do there.
-// But we keep it for API compatibility.
+// @Functionality: follow_symlinks is no longer ignored on Windows, but there are some current limitations. See :WindowsSymlinks below.
 visit_files :: (dir_name: string, recursive: bool, user_data: $T, proc: (info: *File_Visit_Info, user_data: T), visit_files := true, visit_directories := false, follow_symlinks := true) -> bool {
 
     if !proc return true;
@@ -31,7 +30,6 @@ visit_files :: (dir_name: string, recursive: bool, user_data: $T, proc: (info: *
     }
 
     info: File_Visit_Info = ---;
-    info.is_symlink = false;
     info.had_error  = false;
 
     cursor := 0;
@@ -62,24 +60,36 @@ visit_files :: (dir_name: string, recursive: bool, user_data: $T, proc: (info: *
 
             info.short_name             = name;
             info.full_name              = full_name;
+            info.is_symlink             = (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) && (find_data.dwReserved0 == IO_REPARSE_TAG_SYMLINK);
             info.descend_into_directory = false;
 
-            if find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY {
-                if (name != ".") && (name != "..") {
-                    info.descend_into_directory = recursive;
-                    if visit_directories {
-                        info.is_directory = true;
+            if follow_symlinks || !info.is_symlink {
+                // :WindowsSymlinks
+                // Note that if this is a symlink then full_name, short_name and modification_time will be for the symlink file
+                // and not its target. If you want the target path then you need to call the Windows DeviceIoControl function
+                // with a handle to the symlink file. The target modification time and size can be retrieved by passing the 
+                // symlink path to file_modtime_and_size().
+                //
+                // This also doesn't detect symlink loops, but FindNextFileW will eventually bail... you'll just have a lot of
+                // extra proc calls.
+                if find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY {
+                    if (name != ".") && (name != "..") {
+                        info.descend_into_directory = recursive;
+                        if visit_directories {
+                            info.is_directory = true;
+                            info.modification_time = filetime_to_apollo(find_data.ftLastWriteTime);
+                            proc(*info, user_data);
+                        }
+
+                        if info.descend_into_directory  array_add(*directories, copy_string(full_name));
+                    }
+                } else {
+                    if visit_files {
+                        info.is_directory = false;
                         info.modification_time = filetime_to_apollo(find_data.ftLastWriteTime);
+
                         proc(*info, user_data);
                     }
-
-                    if info.descend_into_directory  array_add(*directories, copy_string(full_name));
-                }
-            } else {
-                if visit_files {
-                    info.is_directory = false;
-                    info.modification_time = filetime_to_apollo(find_data.ftLastWriteTime);
-                    proc(*info, user_data);
                 }
             }
 
